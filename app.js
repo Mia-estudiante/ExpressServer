@@ -1,26 +1,53 @@
 const express = require("express");
 const app = express();
-const mysql = require("mysql");
+const mysql = require("mysql2");
 const cors = require("cors");
+const PORT = 8080;
+// const whitelist = ["https://github.com/Mia-estudiante/WebSite"];
 
+require("dotenv").config();
+// app.use(cors({ origin: whitelist }));
 app.use(cors());
 app.use(express.json());
 
+//1)
 const connection = mysql.createConnection({
-  host: "172.17.0.2",
-  user: "root",
-  password: "passwordmysql",
-  port: 3306,
-  database: "db_user",
+  host: process.env.DB_HOST, //mysql ip
+  user: process.env.DB_USER,
+  password: process.env.DB_PW,
+  port: parseInt(process.env.DB_PORT),
+  database: process.env.DB_NAME,
 });
-connection.connect();
+// console.log(connection);
 
-// connection.query("SELECT * FROM table", function (err, results, fields) {
-//   if (err) {
-//     console.log(err);
-//   }
-//   console.log(results);
+connection.connect(function (err) {
+  if (err) {
+    console.log("Cannot connect");
+    throw err;
+  } else {
+    console.log("Connection established.");
+  }
+});
+
+//2)
+// const pool = mysql.createPool({
+//   host: process.env.DB_HOST, //mysql ip
+//   user: process.env.DB_USER,
+//   password: process.env.DB_PW,
+//   port: parseInt(process.env.DB_PORT),
+//   database: process.env.DB_NAME,
+//   waitForConnections: true,
+//   connectionLimit: 10,
+//   queueLimit: 0,
 // });
+
+// pool.getConnection(function (err, conn) {
+// if (!err) {
+//  conn.query("SELECT host, user FROM user");
+// }
+// console.log(err);
+//conn.release();
+//});
 
 /*
 CREATE TABLE user_info (
@@ -51,4 +78,4 @@ app.post("/signup", (req, res) => {
   console.log(id, pw, name, birth);
 });
 
-app.listen(8080, console.log("app listening"));
+app.listen(PORT, console.log("app listening"));
