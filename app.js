@@ -20,42 +20,67 @@ const connection = mysql.createConnection({
   database: process.env.DB_NAME,
 });
 
-let email;
+let id, pw, name, birth;
+const getUserInfo = function (req, res, next) {
+  const request = req.body;
+  id = request.id;
+  pw = request.pw; //암호화
+  name = request.name;
+  birth = request.birth;
+  // console.log(id, pw, name, birth);
+  console.log("1");
+  next();
+};
+
 const emailQuery = `SELECT EXISTS(SELECT id FROM user_info WHERE id='`;
 let isValidEmail = false;
 
+const checkValidEmail = function (req, res, next) {
+  //1. 이미 존재하는 이메일인가?
+  connection.query(emailQuery + `${id}')`, (err, rows, fields) => {
+    if (err) {
+      throw err;
+    }
+    const key = Object.keys(rows[0])[0];
+    console.log(rows);
+    rows[0][key] == 0 ? (isValidEmail = true) : (isValidEmail = false);
+    console.log(isValidEmail);
+    console.log("checking Before " + isValidEmail); //실행순서 2
+  });
+  console.log(isValidEmail);
+  next(isValidEmail);
+};
+
+const insertUserInfo = function (req, res, next) {
+  //2. user_info - id, name, birth 기록
+  console.log(isValidEmail);
+  if (!isValidEmail) {
+    connection.end();
+  } else {
+    // console.log("insert");
+    const UIQuery = `INSERT INTO user_info (id, name, birth) VALUE ('${id}', '${name}', '${birth}')`;
+    connection.query(UIQuery, (err, rows, fields) => {
+      if (err) {
+        throw err;
+      }
+    });
+  }
+  res.json({ result: isValidEmail });
+  console.log("3");
+  next();
+};
+
+//동기처리!!
+app.use(getUserInfo);
+app.use(checkValidEmail);
+app.use(insertUserInfo);
+
 //회원가입
 app.post("/signup", (req, res) => {
-  const request = req.body.data;
-
-  const id = request.id;
-  const pw = request.pw; //암호화
-  const name = request.name;
-  const birth = request.birth;
-  console.log(id, pw, name, birth);
-
-  //1. 이미 존재하는 이메일인가?
-  email = id;
-  connection.query(emailQuery + `${email}')`, (err, rows, fields) => {
-    if (err) {
-      throw err;
-    }
-
-    for (let key in rows) {
-      key == 0 ? (isValidEmail = true) : (isValidEmail = false);
-    }
-    res.json([{ result: isValidEmail }]);
-  });
-
-  //2. user_info - id, name, birth 기록
-  const UIQuery = `INSERT INTO user_info (id, name, birth) VALUE ('${id}', '${name}', '${birth}')`;
-  connection.query(UIQuery, (err, rows, fields) => {
-    if (err) {
-      throw err;
-    }
-  });
+  // console.log("checking After " + isValidEmail); //실행순서 1
 
   //3. user_encrypt - id, pw, salt 기록 -> 암호화
+  console.log("4");
 });
 
 app.listen(PORT, console.log("app listening"));
