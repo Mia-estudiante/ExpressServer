@@ -8,7 +8,7 @@ router.post(
   "/",
   controller.getUserInfo,
   controller.insertUserInfo,
-  controller.checkValidEmail
+  controller.insertUserEncrypt
 );
 
 //동기처리!!

@@ -2,12 +2,9 @@
 
 const express = require("express");
 const router = express.Router();
-const connection = require("../app");
+const controller = require("../controllers/emailCheck");
 
 //1. 이메일 유효 확인
-router.post("/emailCheck", (req, res) => {
-  //   const request = req.data.body;
-  //   console.log(request);
-});
+router.post("/emailCheck", controller.checkValidEmail);
 
 module.exports = router;
