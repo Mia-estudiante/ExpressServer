@@ -4,11 +4,9 @@ const connection = require("../app");
 
 const checkValidEmail = function (req, res, next) {
   //1. 이미 존재하는 이메일인가?
-  const emailQuery = `SELECT EXISTS(SELECT * FROM user_info WHERE id='`;
-  const id = req.body.data;
-  console.log(id);
+  const emailQuery = `SELECT EXISTS(SELECT * FROM user_info WHERE id=?)`;
   let isValidEmail = false;
-  connection.query(emailQuery + `${id}')`, (err, rows, fields) => {
+  connection.query(emailQuery, [req.body.id], (err, rows, fields) => {
     if (err) {
       throw err;
     }

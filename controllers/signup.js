@@ -2,13 +2,13 @@
 
 const connection = require("../app"); //MySQL 연결
 const crypto = require("crypto");
-// const { captureRejectionSymbol } = require("events");
+const { request } = require("http");
 
 let id, pw, name, birth;
 const getUserInfo = (req, res, next) => {
   const request = req.body;
   id = request.id;
-  pw = request.pw; //암호화
+  pw = request.pw;
   name = request.name;
   birth = request.birth;
   console.log(id, pw, name, birth);
@@ -17,13 +17,14 @@ const getUserInfo = (req, res, next) => {
 
 const insertUserInfo = function (req, res, next) {
   //2. user_info - id, name, birth 기록
-  const UIQuery = `INSERT INTO user_info (id, name, birth) VALUE ('${id}', '${name}', '${birth}')`;
+  const UIQuery = `INSERT INTO user_info (id, name, birth) VALUE (${connection.escape(
+    id
+  )}, ${connection.escape(name)}, ${connection.escape(birth)})`;
   connection.query(UIQuery, (err, rows, fields) => {
     if (err) {
       throw err;
     }
   });
-
   next();
 };
 
@@ -35,10 +36,6 @@ const insertUserEncrypt = function (req, res, next) {
     .update(pw + salt)
     .digest("hex"); //or 'base64'
 
-  //복호화 확인해보기!!!!
-  // const decipher = crypto.createDecipheriv("aes-512-cbc", salt);
-  // console.log(decipher);
-
   const UEQuery = `INSERT INTO user_encrypt (id, pw, salt) VALUE ('${id}', '${hashPassword}', '${salt}')`;
   connection.query(UEQuery, (err, rows, fields) => {
     if (err) {
@@ -46,6 +43,7 @@ const insertUserEncrypt = function (req, res, next) {
     }
   });
 
+  //connection.promise().query -> promise가 더 활용성 / async await
   res.json({ result: true });
 };
 
