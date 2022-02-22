@@ -2,7 +2,8 @@
 
 const connection = require("../app"); //MySQL 연결
 const crypto = require("crypto");
-const { request } = require("http");
+// const pbkdf2Password = require("pbkdf2-password"); //salt 자동 생성
+// const hasher = pbkdf2Password();
 
 let id, pw, name, birth;
 const getUserInfo = (req, res, next) => {
@@ -29,21 +30,36 @@ const insertUserInfo = function (req, res, next) {
 };
 
 const insertUserEncrypt = function (req, res, next) {
-  //3. user_encrypt - id, name, birth 기록
-  const salt = crypto.randomBytes(16).toString("base64");
-  const hashPassword = crypto
-    .createHash("sha512")
-    .update(pw + salt)
-    .digest("hex"); //or 'base64'
-
-  const UEQuery = `INSERT INTO user_encrypt (id, pw, salt) VALUE ('${id}', '${hashPassword}', '${salt}')`;
-  connection.query(UEQuery, (err, rows, fields) => {
+  //3. user_encrypt - id, pw, salt 기록
+  crypto.randomBytes(64, (err, buf) => {
     if (err) {
       throw err;
     }
-  });
+    /** salt 생성
+     * 1) base64: 64진수 + 용량 적음
+     * 2) hex: 16진수 + 용량 큼
+     */
+    const salt = buf.toString("base64");
 
-  //connection.promise().query -> promise가 더 활용성 / async await
+    /**
+     *  평문 pw, salt, iteration, byte length, digest(암호화) method, callback 함수
+     */
+    crypto.pbkdf2(pw, salt, 256, 64, "sha512", (err, key) => {
+      if (err) {
+        throw err;
+      }
+
+      const hashPassword = key.toString("base64"); //salt와 암호화된 최종 pw
+      const UEQuery = `INSERT INTO user_encrypt (id, pw, salt) VALUE (${connection.escape(
+        id
+      )}, ${connection.escape(hashPassword)}, ${connection.escape(salt)})`;
+      connection.query(UEQuery, (err, rows, fields) => {
+        if (err) {
+          throw err;
+        }
+      });
+    });
+  });
   res.json({ result: true });
 };
 
