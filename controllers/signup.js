@@ -16,22 +16,44 @@ const getUserInfo = (req, res, next) => {
   next();
 };
 
+let No;
+/**
+ * user_info 테이블
+ * @param {*} req
+ * @param {*} res
+ * @param {*} next
+ */
 const insertUserInfo = function (req, res, next) {
   //2. user_info - id, name, birth 기록
-  const UIQuery = `INSERT INTO user_info (id, name, birth) VALUE (${connection.escape(
-    id
-  )}, ${connection.escape(name)}, ${connection.escape(birth)})`;
-  connection.query(UIQuery, (err, rows, fields) => {
+  const CountQuery = `SELECT COUNT(*) FROM user_info`;
+  connection.query(CountQuery, (err, rows, fields) => {
     if (err) {
       throw err;
     }
+    const key = Object.keys(rows[0])[0];
+    No = ++rows[0][key];
+
+    const UIQuery = `INSERT INTO user_info (No, id, name, birth) VALUE (${No}, ${connection.escape(
+      id
+    )}, ${connection.escape(name)}, ${connection.escape(birth)})`;
+    connection.query(UIQuery, (err, rows, fields) => {
+      if (err) {
+        throw err;
+      }
+    });
+    next();
   });
-  next();
 };
 
+/**
+ * user_encrypt 테이블
+ * @param {*} req
+ * @param {*} res
+ * @param {*} next
+ */
 const insertUserEncrypt = function (req, res, next) {
   //3. user_encrypt - id, pw, salt 기록
-  crypto.randomBytes(64, (err, buf) => {
+  crypto.randomBytes(32, (err, buf) => {
     if (err) {
       throw err;
     }
@@ -44,13 +66,13 @@ const insertUserEncrypt = function (req, res, next) {
     /**
      *  평문 pw, salt, iteration, byte length, digest(암호화) method, callback 함수
      */
-    crypto.pbkdf2(pw, salt, 256, 64, "sha512", (err, key) => {
+    crypto.pbkdf2(pw, salt, 256, 32, "sha512", (err, key) => {
       if (err) {
         throw err;
       }
 
       const hashPassword = key.toString("base64"); //salt와 암호화된 최종 pw
-      const UEQuery = `INSERT INTO user_encrypt (id, pw, salt) VALUE (${connection.escape(
+      const UEQuery = `INSERT INTO user_encrypt (No, id, pw, salt) VALUE (${No}, ${connection.escape(
         id
       )}, ${connection.escape(hashPassword)}, ${connection.escape(salt)})`;
       connection.query(UEQuery, (err, rows, fields) => {
