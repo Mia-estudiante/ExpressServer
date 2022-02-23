@@ -24,8 +24,10 @@ module.exports = connection;
 
 const emailCheckRouter = require("./routes/emailCheck"); //DB에 이메일 존재 여부 확인
 const signUpRouter = require("./routes/signup"); //회원가입 - DB에 저장
+const signInRouter = require("./routes/signin"); //로그인 - 연산
 
 app.use("/emailCheck", emailCheckRouter);
 app.use("/signup", signUpRouter);
+app.use("/signin", signInRouter);
 
 app.listen(PORT, console.log("app listening"));
