@@ -1,6 +1,6 @@
 "use strict";
 
-const connection = require("../app"); //MySQL 연결
+const { user_info, user_encrypt } = require("../models/index");
 const crypto = require("crypto");
 
 let id, pw;
@@ -12,45 +12,59 @@ const getUserInfo = (req, res, next) => {
   next();
 };
 
-const checkID = (req, res, next) => {
-  const existIDQuery = `SELECT EXISTS(SELECT * FROM user_info WHERE id=?)`;
-
-  connection.query(existIDQuery, [id], (err, rows, fields) => {
-    if (err) {
-      throw err;
-    }
-    const key = Object.keys(rows[0])[0];
-    if (rows[0][key] == 0) {
-      res.json({ result: false });
-    } else {
-      next();
-    }
+/**
+ * 1. 비밀번호 확인 전, 아이디 존재 확인
+ * @param {*} req
+ * @param {*} res
+ * @param {*} next
+ */
+const checkID = async (req, res, next) => {
+  const existIDQuery = `SELECT EXISTS(SELECT * FROM user_info WHERE id=:id)`;
+  const values = {
+    id: id,
+  };
+  const results = await user_info.sequelize.query(existIDQuery, {
+    replacements: values,
+    type: user_info.sequelize.QueryTypes.SELECT,
   });
+  const key = Object.keys(results[0])[0];
+  console.log(key);
+  results[0][key] == 0 ? res.json({ result: false }) : next();
 };
 
-const checkPW = (req, res, next) => {
+let hashPassword, salt;
+/**
+ * 2. 비밀번호 확인 및 매칭
+ * @param {*} req
+ * @param {*} res
+ * @param {*} next
+ */
+const checkPW = async (req, res, next) => {
   console.log("등록된 아이디");
-  const pwsaltQuery = `SELECT pw, salt FROM user_encrypt WHERE id=?`;
-  //   let pw, salt;
-  connection.query(pwsaltQuery, [id], (err, rows, fields) => {
-    if (err) {
-      throw err;
-    }
-    const hashPassword = rows[0].pw;
-    const salt = rows[0].salt;
-
-    //pw: 사용자가 입력한 패스워드
-    //hashPassword: DB에 등록된 패스워드
-    crypto.pbkdf2(pw, salt, 256, 32, "sha512", (err, key) => {
-      if (err) {
-        console.log(err);
-      }
-
-      const hash = key.toString("base64");
-      hashPassword === hash
-        ? res.json({ result: true })
-        : res.json({ result: false });
+  await user_encrypt
+    .findAll({
+      attributes: ["pw", "salt"],
+      where: { id: id },
+    })
+    .then((results) => {
+      hashPassword = results[0].dataValues.pw;
+      salt = results[0].dataValues.salt;
+    })
+    .catch((err) => {
+      console.log(err);
     });
+
+  //pw: 사용자가 입력한 패스워드
+  //hashPassword: DB에 등록된 패스워드
+  crypto.pbkdf2(pw, salt, 256, 32, "sha512", (err, key) => {
+    if (err) {
+      console.log(err);
+    }
+
+    const hash = key.toString("base64");
+    hashPassword === hash
+      ? res.json({ result: true })
+      : res.json({ result: false });
   });
 };
 

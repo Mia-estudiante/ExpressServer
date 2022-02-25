@@ -1,6 +1,6 @@
 "use strict";
 
-const connection = require("../app"); //MySQL 연결
+const { user_info, user_encrypt } = require("../models/index");
 const crypto = require("crypto");
 // const pbkdf2Password = require("pbkdf2-password"); //salt 자동 생성
 // const hasher = pbkdf2Password();
@@ -23,26 +23,33 @@ let No;
  * @param {*} res
  * @param {*} next
  */
-const insertUserInfo = function (req, res, next) {
+const insertUserInfo = async function (req, res, next) {
   //2. user_info - id, name, birth 기록
-  const CountQuery = `SELECT COUNT(*) FROM user_info`;
-  connection.query(CountQuery, (err, rows, fields) => {
-    if (err) {
-      throw err;
-    }
-    const key = Object.keys(rows[0])[0];
-    No = ++rows[0][key];
-
-    const UIQuery = `INSERT INTO user_info (No, id, name, birth) VALUE (${No}, ${connection.escape(
-      id
-    )}, ${connection.escape(name)}, ${connection.escape(birth)})`;
-    connection.query(UIQuery, (err, rows, fields) => {
-      if (err) {
-        throw err;
-      }
+  await user_info
+    .findAll({
+      attributes: [
+        [
+          user_info.sequelize.fn("COUNT", user_info.sequelize.col("*")),
+          "count",
+        ],
+      ],
+    })
+    .then((results) => {
+      No = ++results[0].dataValues.count;
+    })
+    .catch((err) => {
+      console.log(err);
     });
-    next();
-  });
+
+  await user_info
+    .create({ No: No, id: id, name: name, birth: birth })
+    .then((results) => {
+      // console.log(results);
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+  next();
 };
 
 /**
@@ -72,14 +79,15 @@ const insertUserEncrypt = function (req, res, next) {
       }
 
       const hashPassword = key.toString("base64"); //salt와 암호화된 최종 pw
-      const UEQuery = `INSERT INTO user_encrypt (No, id, pw, salt) VALUE (${No}, ${connection.escape(
-        id
-      )}, ${connection.escape(hashPassword)}, ${connection.escape(salt)})`;
-      connection.query(UEQuery, (err, rows, fields) => {
-        if (err) {
-          throw err;
-        }
-      });
+
+      user_encrypt
+        .create({ No: No, id: id, pw: hashPassword, salt: salt })
+        .then((results) => {
+          // console.log(results);
+        })
+        .catch((err) => {
+          console.log(err);
+        });
     });
   });
   res.json({ result: true });

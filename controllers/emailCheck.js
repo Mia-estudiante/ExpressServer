@@ -1,26 +1,18 @@
 "use strict";
 
-// const connection = require("../app");
-const model = require("../models/index");
-console.log(model);
-console.log(model.user_info);
-const checkValidEmail = function (req, res, next) {
-  // console.log(req.body.id);
+const { user_info } = require("../models/index");
+const checkValidEmail = async function (req, res, next) {
   //1. 이미 존재하는 이메일인가?
-  // const emailQuery = `SELECT EXISTS(SELECT * FROM user_info WHERE id=?)`;
-  // let isValidEmail = false;
-  // connection.query(emailQuery, [req.body.id], (err, rows, fields) => {
-  //   if (err) {
-  //     throw err;
-  //   }
-  //   const key = Object.keys(rows[0])[0];
-  //   rows[0][key] == 0 ? (isValidEmail = true) : (isValidEmail = false);
-  //   res.json({ result: isValidEmail });
-  // });
-
-  model.user_info.findAll({
-    attributes: ["name", "id"],
+  const emailQuery = `SELECT EXISTS(SELECT * FROM user_info WHERE id=:id)`;
+  const values = {
+    id: req.body.id,
+  };
+  const results = await user_info.sequelize.query(emailQuery, {
+    replacements: values,
+    type: user_info.sequelize.QueryTypes.SELECT,
   });
+  const key = Object.keys(results[0])[0];
+  results[0][key] ? res.json({ result: false }) : res.json({ result: true });
 };
 
 module.exports = {
