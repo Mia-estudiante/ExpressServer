@@ -19,17 +19,17 @@ const getUserInfo = (req, res, next) => {
  * @param {*} next
  */
 const checkID = async (req, res, next) => {
-  const existIDQuery = `SELECT EXISTS(SELECT * FROM user_info WHERE id=:id)`;
-  const values = {
-    id: id,
-  };
-  const results = await user_info.sequelize.query(existIDQuery, {
-    replacements: values,
-    type: user_info.sequelize.QueryTypes.SELECT,
-  });
-  const key = Object.keys(results[0])[0];
-  console.log(key);
-  results[0][key] == 0 ? res.json({ result: false }) : next();
+  await user_info
+    .findOne({
+      attribute: ["id"],
+      where: { id: id },
+    })
+    .then((results) => {
+      results ? next() : res.json({ result: false });
+    })
+    .catch((err) => {
+      console.log(err);
+    });
 };
 
 let hashPassword, salt;
