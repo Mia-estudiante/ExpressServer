@@ -1,9 +1,9 @@
 "use strict";
 
 const { user_info } = require("../models/index");
-const checkValidEmail = async function (req, res, next) {
+const checkValidEmail = function (req, res, next) {
   //1. 이미 존재하는 이메일인가?
-  await user_info
+  user_info
     .findOne({
       attribute: ["id"],
       where: { id: req.body.id },
