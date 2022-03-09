@@ -13,10 +13,12 @@ app.use(cors());
 app.use(express.json());
 
 const emailCheckRouter = require("./routes/emailCheck"); //DB에 이메일 존재 여부 확인
+const verifiCodeRouter = require("./routes/verificode"); //인증번호 전송
 const signUpRouter = require("./routes/signup"); //회원가입 - DB에 저장
 const signInRouter = require("./routes/signin"); //로그인 - 연산
 
 app.use("/emailCheck", emailCheckRouter);
+app.use("/verificode", verifiCodeRouter);
 app.use("/signup", signUpRouter);
 app.use("/signin", signInRouter);
 

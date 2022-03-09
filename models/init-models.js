@@ -6,6 +6,7 @@ function initModels(sequelize) {
   var user_encrypt = _user_encrypt(sequelize, DataTypes);
   var user_info = _user_info(sequelize, DataTypes);
 
+
   return {
     user_encrypt,
     user_info,
