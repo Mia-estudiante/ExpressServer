@@ -61,15 +61,12 @@ const send = async function (req, res, next) {
   nodemailer.createTransport(transporter).sendMail(email_data, (err, info) => {
     if (err) {
       console.log(err);
+      res.json({ result: false });
     }
     // console.log(info);
   });
 
-  ////////인증 완료시 확인할 것, 그리고 데이터 낭비를 위해 삭제
-  const val = await client.get(`${id}`, redis.print);
-  console.log(val);
-  ////////////////
-  res.json({ code: val });
+  res.json({ result: true });
 };
 
 module.exports = {
