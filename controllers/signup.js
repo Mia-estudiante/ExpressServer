@@ -7,7 +7,7 @@ const crypto = require("crypto");
  * 목적) 가입하는 회원의 회원번호를 부여하기 위해
  * @returns 부여할 회원번호
  */
-const newNo = function () {
+const newNo = function (table) {
   return user_info
     .findAll({
       attributes: [
@@ -33,7 +33,7 @@ const newNo = function () {
  */
 const insertUserInfo = async function (req, res, next) {
   //1. 회원번호 부여
-  const No = await newNo();
+  const No = await newNo("user_info");
 
   //2. user_info 테이블 : No, id, name, birth
   await user_info
@@ -59,7 +59,8 @@ const insertUserInfo = async function (req, res, next) {
  * @param {*} next
  */
 const insertUserEncrypt = async function (req, res, next) {
-  const No = await newNo();
+  let No = await newNo();
+  No -= 1;
 
   //3. user_encrypt - id, pw, salt 기록 => 64바이트
   crypto.randomBytes(32, (err, buf) => {

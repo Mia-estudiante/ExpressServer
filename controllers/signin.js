@@ -3,6 +3,10 @@
 const { user_info, user_encrypt } = require("../models/index");
 const crypto = require("crypto");
 
+const jwt = require("jsonwebtoken");
+let jwtObj = {};
+jwtObj.secret = "apple"; // 비밀키
+
 function findPW(id) {
   return user_encrypt
     .findAll({
@@ -113,7 +117,7 @@ const updateTable = (req, res, next) => {
           }
         )
         .then((results) => {
-          res.json({ result: true });
+          next();
         })
         .catch((err) => {
           console.log(err);
@@ -122,8 +126,62 @@ const updateTable = (req, res, next) => {
   });
 };
 
+const makeJWT = (req, res, next) => {
+  /**
+   * 토큰은 로그인할 때 생성
+   * 로그인할 때마다 JWT 발급
+   * - DB에 refreshToken 저장 테이블 생성
+   * CREATE TABLE refresh_token (
+   *    No INT NOT NULL,
+   *    id  VARCHAR(150) NOT NULL,
+   *    token VARCHAR(100),
+   *    PRIMARY KEY(No))
+   *
+   * CLIENT -> SERVER
+   * 1. refreshtoken 존재 확인(보통 2주로 설정)
+   *  - 없으면, 발급(SERVER -> CLIENT)
+   *  - 있다면, 유효기간 확인
+   *    -> 1일 이상이면 그대로 사용
+   *    -> 아닌 경우, 새로 발급
+   *  - DB에 저장
+   *
+   * 2. accesstoken 존재 확인
+   *  - 없다면, 발급(SERVER -> CLIENT)
+   *  - 있다면, 유효기간 확인
+   *    -> 1시간 이상이면 그대로 사용
+   *    -> 아닌 경우, refreshtoken을 통해 새로 발급
+   *
+   * CLIENT -> SERVER
+   * 3. 발급받은 토큰으로 서버에 재요청
+   * 4. 관련 페이지로 이동
+   *
+   */
+
+  /**
+   * refresh token
+   * - payload 없이 발급
+   */
+  const refreshToken = jwt.sign({}, process.env.JWT_SECRET, {
+    algorithm: "HS256",
+    expiresIn: "14d",
+  });
+
+  /**
+   * access token
+   */
+  const accessToken = jwt.sign({ id: req.body.id }, process.env.JWT_SECRET, {
+    algorithm: "HS256",
+    expiresIn: "3h",
+  });
+
+  // 웹 브라우저(클라이언트)에 토큰 세팅
+  res.cookie("accessToken", accessToken);
+  res.cookie("refreshToken", refreshToken);
+};
+
 module.exports = {
   checkID,
   checkPW,
   updateTable,
+  makeJWT,
 };

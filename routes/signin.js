@@ -8,7 +8,8 @@ router.post(
   "/",
   controller.checkID,
   controller.checkPW,
-  controller.updateTable
+  controller.updateTable,
+  controller.makeJWT
 );
 
 module.exports = router;
