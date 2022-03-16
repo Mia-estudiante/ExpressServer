@@ -9,7 +9,7 @@ router.post(
   controller.checkID,
   controller.checkPW,
   controller.updateTable,
-  controller.makeJWT
+  controller.checkRT
 );
 
 module.exports = router;

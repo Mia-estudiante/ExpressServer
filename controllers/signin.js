@@ -1,11 +1,65 @@
 "use strict";
 
-const { user_info, user_encrypt } = require("../models/index");
+const { user_info, user_encrypt, refresh_token } = require("../models/index");
 const crypto = require("crypto");
 
 const jwt = require("jsonwebtoken");
-let jwtObj = {};
-jwtObj.secret = "apple"; // 비밀키
+
+/**
+ * 테이블 상 번호
+ */
+function newNo() {
+  return refresh_token
+    .findAll({
+      attributes: [
+        [
+          refresh_token.sequelize.fn("COUNT", refresh_token.sequelize.col("*")),
+          "count",
+        ],
+      ],
+    })
+    .then((results) => {
+      return ++results[0].dataValues.count;
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+}
+
+/**
+ * refresh token 존재 여부 확인
+ * @param {*} id
+ * @returns
+ */
+function findRT(id) {
+  return refresh_token
+    .findOne({
+      attribute: ["id"],
+      where: { id: id },
+    })
+    .then((results) => {
+      let ret = false;
+      results ? (ret = true) : (ret = false);
+      return ret;
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+}
+
+function returnRT(id) {
+  return refresh_token
+    .findOne({
+      attribute: ["token"],
+      where: { id: id },
+    })
+    .then((results) => {
+      return results.dataValues.token;
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+}
 
 function findPW(id) {
   return user_encrypt
@@ -126,62 +180,156 @@ const updateTable = (req, res, next) => {
   });
 };
 
-const makeJWT = (req, res, next) => {
-  /**
-   * 토큰은 로그인할 때 생성
-   * 로그인할 때마다 JWT 발급
-   * - DB에 refreshToken 저장 테이블 생성
-   * CREATE TABLE refresh_token (
-   *    No INT NOT NULL,
-   *    id  VARCHAR(150) NOT NULL,
-   *    token VARCHAR(100),
-   *    PRIMARY KEY(No))
-   *
-   * CLIENT -> SERVER
-   * 1. refreshtoken 존재 확인(보통 2주로 설정)
-   *  - 없으면, 발급(SERVER -> CLIENT)
-   *  - 있다면, 유효기간 확인
-   *    -> 1일 이상이면 그대로 사용
-   *    -> 아닌 경우, 새로 발급
-   *  - DB에 저장
-   *
-   * 2. accesstoken 존재 확인
-   *  - 없다면, 발급(SERVER -> CLIENT)
-   *  - 있다면, 유효기간 확인
-   *    -> 1시간 이상이면 그대로 사용
-   *    -> 아닌 경우, refreshtoken을 통해 새로 발급
-   *
-   * CLIENT -> SERVER
-   * 3. 발급받은 토큰으로 서버에 재요청
-   * 4. 관련 페이지로 이동
-   *
-   */
+/**
+ * 토큰은 로그인할 때 생성
+ * 로그인할 때마다 JWT 발급
+ * - DB에 refreshToken 저장 테이블 생성
+ * CREATE TABLE refresh_token (
+ *    No INT NOT NULL,
+ *    id  VARCHAR(150) NOT NULL,
+ *    token VARCHAR(100),
+ *    PRIMARY KEY(No))
+ *
+ * CLIENT -> SERVER
+ * 1. refreshtoken 존재 확인(보통 2주로 설정)
+ *  - 없으면, 발급(SERVER -> CLIENT)
+ *  - 있다면, 유효기간 확인
+ *    -> 1일 이상이면 그대로 사용
+ *    -> 아닌 경우, 새로 발급
+ *  - DB에 저장
+ *
+ * 2. accesstoken 존재 확인
+ *  - 없다면, 발급(SERVER -> CLIENT)
+ *  - 있다면, 유효기간 확인
+ *    -> 1시간 이상이면 그대로 사용
+ *    -> 아닌 경우, refreshtoken을 통해 새로 발급
+ *
+ * CLIENT -> SERVER
+ * 3. 발급받은 토큰으로 서버에 재요청
+ * 4. 관련 페이지로 이동
+ *
+ */
 
-  /**
-   * refresh token
-   * - payload 없이 발급
-   */
-  const refreshToken = jwt.sign({}, process.env.JWT_SECRET, {
-    algorithm: "HS256",
-    expiresIn: "14d",
-  });
+/**
+ * refresh token 확인
+ * 1) 존재 x -> 생성
+ * 2) 존재 o
+ * @param {*} req
+ * @param {*} res
+ * @param {*} next
+ */
+const checkRT = async (req, res, next) => {
+  const existRT = await findRT(req.body.id);
+  // console.log(existRT);
 
-  /**
-   * access token
-   */
-  const accessToken = jwt.sign({ id: req.body.id }, process.env.JWT_SECRET, {
-    algorithm: "HS256",
-    expiresIn: "3h",
-  });
+  //refresh token DB에 존재
+  if (existRT) {
+    try {
+      const refreshToken = await returnRT(req.body.id);
+      jwt.verify(refreshToken, process.env.JWT_SECRET);
 
-  // 웹 브라우저(클라이언트)에 토큰 세팅
-  res.cookie("accessToken", accessToken);
-  res.cookie("refreshToken", refreshToken);
+      //유효기간 남음 -> access token만 발급
+      /**
+       * access token
+       * - payload 사용
+       */
+      const accessToken = jwt.sign(
+        { id: req.body.id },
+        process.env.JWT_SECRET,
+        {
+          algorithm: "HS256",
+          expiresIn: "3h",
+        }
+      );
+
+      res.cookie("refresh", refreshToken);
+      res.cookie("access", accessToken);
+      res.json({ reulst: true });
+    } catch (err) {
+      // 유효기간 만료 -> refresh token 새로 발급 및 DB에 업데이트
+      if (err.name === "TokenExpiredError") {
+        const refreshToken = jwt.sign({}, process.env.JWT_SECRET, {
+          algorithm: "HS256",
+          expiresIn: "14d",
+        });
+
+        refresh_token
+          .update(
+            { token: refreshToken },
+            {
+              where: { id: id },
+            }
+          )
+          .then((results) => {
+            console.log(results);
+          })
+          .catch((err) => {
+            console.log(err);
+          });
+
+        /**
+         * access token
+         * - payload 사용
+         */
+        const accessToken = jwt.sign(
+          { id: req.body.id },
+          process.env.JWT_SECRET,
+          {
+            algorithm: "HS256",
+            expiresIn: "3h",
+          }
+        );
+
+        res.cookie("refresh", refreshToken);
+        res.cookie("access", accessToken);
+        res.json({ reulst: true });
+      }
+    }
+  } else {
+    //존재 x - 첫 로그인 회원 => refresh & access token 발급
+    const No = await newNo();
+    console.log(No);
+
+    /**
+     * refresh token
+     * - payload x
+     */
+    const refreshToken = jwt.sign({}, process.env.JWT_SECRET, {
+      algorithm: "HS256",
+      expiresIn: "14d",
+    });
+
+    await refresh_token
+      .create({
+        No: No,
+        id: req.body.id,
+        token: refreshToken,
+      })
+      .then((results) => {
+        console.log(results);
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+
+    /**
+     * access token
+     * - payload 사용
+     */
+    const accessToken = jwt.sign({ id: req.body.id }, process.env.JWT_SECRET, {
+      algorithm: "HS256",
+      expiresIn: "3h",
+    });
+
+    res.cookie("refresh", refreshToken);
+    res.cookie("access", accessToken);
+    res.json({ reulst: true });
+  }
 };
 
 module.exports = {
   checkID,
   checkPW,
   updateTable,
-  makeJWT,
+  checkRT,
 };

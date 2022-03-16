@@ -11,7 +11,7 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false
     },
     token: {
-      type: DataTypes.STRING(100),
+      type: DataTypes.STRING(200),
       allowNull: true
     }
   }, {
