@@ -1,7 +1,6 @@
 "use strict";
 
 const nodemailer = require("nodemailer");
-const redis = require("redis");
 const sanitizeHtml = require("sanitize-html");
 require("dotenv").config();
 
@@ -12,15 +11,6 @@ require("dotenv").config();
 function getRandomInt() {
   return Math.floor(Math.random() * (10000 - 1000)) + 1000;
 }
-
-/**
- * redis 연결
- */
-const client = redis.createClient({
-  host: process.env.REDIS_HOST,
-  port: parseInt(process.env.REDIS_PORT),
-});
-client.connect();
 
 /**
  * transporter 객체
@@ -41,7 +31,7 @@ const transporter = {
  * @param {} to id
  * @returns email_data
  */
-function makeData(to) {
+function makeData(to, client) {
   const code = getRandomInt();
   client.set(`${to}`, code); //암호화?
 
@@ -55,7 +45,7 @@ function makeData(to) {
 
 const send = async function (req, res, next) {
   const id = sanitizeHtml(req.body.id);
-  const email_data = makeData(id);
+  const email_data = makeData(id, req.client);
 
   //인증번호 발송
   nodemailer.createTransport(transporter).sendMail(email_data, (err, info) => {
