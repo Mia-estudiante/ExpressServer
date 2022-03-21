@@ -50,8 +50,8 @@ const send = async function (req, res, next) {
   //인증번호 발송
   nodemailer.createTransport(transporter).sendMail(email_data, (err, info) => {
     if (err) {
-      console.log(err);
       res.json({ result: false });
+      throw new Error(`The verificode wasn't transmitted!`);
     }
     // console.log(info);
   });

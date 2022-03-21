@@ -20,7 +20,9 @@ const checkVerifiCode = async (req, res, next) => {
 const delKey = async (req, res, next) => {
   const id = sanitizeHtml(req.body.id);
   const result = await req.client.del(`${id}`, redis.print);
-  result === 1 ? res.json({ result: true }) : res.json({ result: false });
+  result === 1
+    ? res.json({ result: true })
+    : next(new Error("The verificode wasn't removed in Redis(data wastage)!"));
 };
 
 module.exports = {

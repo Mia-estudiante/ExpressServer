@@ -8,11 +8,13 @@ const checkValidEmail = function (req, res, next) {
       attribute: ["id"],
       where: { id: req.body.id },
     })
-    .then((results) => {
-      results ? res.json({ result: false }) : res.json({ result: true });
+    .then((result) => {
+      result ? res.json({ result: false }) : res.json({ result: true });
     })
     .catch((err) => {
-      console.log(err);
+      throw new Error(
+        `The "user_info" table doesn't return "checkValidEmail" result!`
+      );
     });
 };
 

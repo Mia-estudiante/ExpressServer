@@ -32,13 +32,23 @@ const verifiCodeRouter = require("./routes/verificode"); //인증번호 전송
 const checkVerifiCodeRouter = require("./routes/checkVerifiCode"); //인증번호 확인
 const signUpRouter = require("./routes/signup"); //회원가입 - DB에 저장
 const signInRouter = require("./routes/signin"); //로그인 - 연산
+const searchRouter = require("./routes/search"); //직접 검색 - 웹 스크랩핑
 
 app.use("/emailCheck", emailCheckRouter);
 app.use("/verificode", verifiCodeRouter);
 app.use("/checkVerifiCode", checkVerifiCodeRouter);
 app.use("/signup", signUpRouter);
 app.use("/signin", signInRouter);
-// app.all("*", (err, req, res, next) => {
-//   res.status(404).send("<h1>요청한 페이지는 없습니다.</h1>");
-// });
+app.use("/search", searchRouter);
+
+//404 응답은 단순히 실행해야 할 추가적인 작업이 없다는 것을 의미
+app.use((req, res, next) => {
+  res.status(404).send("Sorry can't find that!");
+});
+
+//next 메소드로 전달받은 err 핸들링
+app.all("*", (err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send("Something broke!");
+});
 app.listen(PORT, console.log("app listening"));

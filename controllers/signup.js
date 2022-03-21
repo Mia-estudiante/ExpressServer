@@ -7,7 +7,7 @@ const crypto = require("crypto");
  * 목적) 가입하는 회원의 회원번호를 부여하기 위해
  * @returns 부여할 회원번호
  */
-const newNo = function (table) {
+const newUID = function () {
   return user_info
     .findAll({
       attributes: [
@@ -21,7 +21,7 @@ const newNo = function (table) {
       return ++results[0].dataValues.count;
     })
     .catch((err) => {
-      console.log(err);
+      throw new Error(`The "user_info" table doesn't return "newUID" result!`);
     });
 };
 
@@ -33,12 +33,12 @@ const newNo = function (table) {
  */
 const insertUserInfo = async function (req, res, next) {
   //1. 회원번호 부여
-  const No = await newNo("user_info");
+  const uid = await newUID();
 
   //2. user_info 테이블 : No, id, name, birth
   await user_info
     .create({
-      No: No,
+      uid: uid,
       id: req.body.id,
       name: req.body.name,
       birth: req.body.birth,
@@ -47,7 +47,7 @@ const insertUserInfo = async function (req, res, next) {
       // console.log(results);
     })
     .catch((err) => {
-      console.log(err);
+      throw new Error(`The "user_info" table doesn't create new user!`);
     });
   next();
 };
@@ -59,13 +59,13 @@ const insertUserInfo = async function (req, res, next) {
  * @param {*} next
  */
 const insertUserEncrypt = async function (req, res, next) {
-  let No = await newNo();
-  No -= 1;
+  let uid = await newUID();
+  uid -= 1;
 
   //3. user_encrypt - id, pw, salt 기록 => 64바이트
   crypto.randomBytes(32, (err, buf) => {
     if (err) {
-      throw err;
+      throw new Error(`The random string wasn't returned for encryption!`);
     }
     /** salt 생성
      * 1) base64: 64진수 + 용량 적음
@@ -78,18 +78,20 @@ const insertUserEncrypt = async function (req, res, next) {
      */
     crypto.pbkdf2(req.body.pw, salt, 256, 32, "sha512", (err, key) => {
       if (err) {
-        throw err;
+        throw new Error(`The key operation doesn't work!`);
       }
 
       const hashPassword = key.toString("base64"); //salt와 암호화된 최종 pw
 
       user_encrypt
-        .create({ No: No, id: req.body.id, pw: hashPassword, salt: salt })
+        .create({ uid: uid, id: req.body.id, pw: hashPassword, salt: salt })
         .then((results) => {
           // console.log(results);
         })
         .catch((err) => {
-          console.log(err);
+          throw new Error(
+            `The "user_encrypt" table doesn't create new user for encryption`
+          );
         });
     });
   });

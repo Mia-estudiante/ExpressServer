@@ -17,7 +17,7 @@ function getUID(id) {
       return result.dataValues.uid;
     })
     .catch((err) => {
-      console.log(err);
+      throw new Error(`The "user_info" table doesn't return "getUID" result!`);
     });
 }
 
@@ -31,7 +31,9 @@ function findPW(id) {
       return results[0].dataValues.pw;
     })
     .catch((err) => {
-      console.log(err);
+      throw new Error(
+        `The "user_encrypt" table doesn't return "findPW" result!`
+      );
     });
 }
 
@@ -45,7 +47,9 @@ function findSalt(id) {
       return results[0].dataValues.salt;
     })
     .catch((err) => {
-      console.log(err);
+      throw new Error(
+        `The "user_encrypt" table doesn't return "findSalt" result!`
+      );
     });
 }
 
@@ -60,11 +64,11 @@ const checkID = (req, res, next) => {
     .findOne({
       where: { id: req.body.id },
     })
-    .then((results) => {
-      results ? next() : res.json({ result: false });
+    .then((result) => {
+      result ? next() : res.json({ result: false });
     })
     .catch((err) => {
-      console.log(err);
+      throw new Error(`The "user_info" table doesn't return "checkID" result`);
     });
 };
 
@@ -90,7 +94,7 @@ const checkPW = async (req, res, next) => {
    */
   crypto.pbkdf2(req.body.pw, salt, 256, 32, "sha512", (err, key) => {
     if (err) {
-      console.log(err);
+      throw new Error(`The key operation doesn't work!`);
     }
 
     const hash = key.toString("base64"); //사용자가 입력한 패스워드를 salt를 통해 sha512로 암호화한 패스워드
@@ -108,7 +112,7 @@ const updateTable = (req, res, next) => {
 
   crypto.randomBytes(32, (err, buf) => {
     if (err) {
-      throw err;
+      throw new Error(`The random string wasn't returned for encryption!`);
     }
 
     const newSalt = buf.toString("base64");
@@ -118,7 +122,7 @@ const updateTable = (req, res, next) => {
      */
     crypto.pbkdf2(pw, newSalt, 256, 32, "sha512", (err, key) => {
       if (err) {
-        throw err;
+        throw new Error(`The key operation doesn't work!`);
       }
 
       const newHashPassword = key.toString("base64"); //salt와 암호화된 최종 pw
@@ -134,7 +138,7 @@ const updateTable = (req, res, next) => {
           next();
         })
         .catch((err) => {
-          console.log(err);
+          throw new Error(`The new salt wasn't updated!`);
         });
     });
   });
