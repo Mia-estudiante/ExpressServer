@@ -18,6 +18,8 @@
   },
   "homepage": "https://github.com/Mia-estudiante/ExpressServer#readme",
   "dependencies": {
+    "axios": "^0.26.1",
+    "cheerio": "^1.0.0-rc.10",
     "concurrently": "^7.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.0.0",
