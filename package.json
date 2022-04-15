@@ -29,6 +29,7 @@
     "mysql2": "^2.3.3",
     "nodemailer": "^6.7.2",
     "pbkdf2-password": "^1.2.1",
+    "puppeteer": "^13.5.2",
     "redis": "^4.0.4",
     "sanitize-html": "^2.7.0",
     "sequelize": "^6.16.2",
