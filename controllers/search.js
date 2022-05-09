@@ -32,6 +32,32 @@ const pageHTML = async (count, title) => {
   }
 };
 
+function returnPromise(jsonArray, movie, $) {
+  //then -> resolove를 통해 데이터를 받음
+  //then -> reject는 에러를 받음
+  return new Promise((resolve, reject) => {
+    let json = new Object();
+    //1. 영화 상세 페이지 링크
+    json.link =
+      "https://movie.naver.com" + $(movie).find("dl dt a").attr("href");
+    // const browser = await puppeteer.launch({ headless: true });
+    // const page = await browser.newPage();
+    // await page.goto(`https://movie.naver.com${link}`);
+    // const src = await page.$eval(".poster > a > img", (ele) => ele.src);
+    const smallImgSrc = $(movie).find("p > a > img").attr("src");
+    const typePos = $(movie).find("p > a > img").attr("src").indexOf("type");
+
+    //2. 영화 이미지 링크
+    json.imgSrc = smallImgSrc.slice(undefined, typePos);
+
+    //3. 영화 토픽
+    json.title = $(movie).find("dl dt").text();
+    // console.log(json);
+    jsonArray.push(json);
+    resolve(jsonArray);
+  });
+}
+
 const searchWord = async (req, res, next) => {
   let jsonArray = new Array(); //객체들을 담아서 보낼 배열
   const title = sanitizeHTML(req.body.word);
@@ -49,28 +75,12 @@ const searchWord = async (req, res, next) => {
     const $ = cheerio.load(html.data);
     const movies = $(".search_list_1").first().children("li");
 
-    //한 페이지 내 영화 리스트
-    for (const movie of movies) {
-      let json = new Object();
-      //1. 영화 상세 페이지 링크
-      json.link =
-        "https://movie.naver.com" + $(movie).find("dl dt a").attr("href");
-      // const browser = await puppeteer.launch({ headless: true });
-      // const page = await browser.newPage();
-      // await page.goto(`https://movie.naver.com${link}`);
-      // const src = await page.$eval(".poster > a > img", (ele) => ele.src);
-      const smallImgSrc = $(movie).find("p > a > img").attr("src");
-      const typePos = $(movie).find("p > a > img").attr("src").indexOf("type");
-
-      //2. 영화 이미지 링크
-      json.imgSrc = smallImgSrc.slice(undefined, typePos);
-
-      //3. 영화 토픽
-      json.title = $(movie).find("dl dt").text();
-      jsonArray.push(json);
-    }
+    await Promise.all(
+      $(movies).each(async (idx, movie) => {
+        returnPromise(jsonArray, movie, $);
+      })
+    );
   }
-  console.log(jsonArray.length);
   res.json({ movies: jsonArray });
 };
 
