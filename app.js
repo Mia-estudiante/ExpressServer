@@ -34,6 +34,7 @@ const signUpRouter = require("./routes/signup"); //회원가입 - DB에 저장
 const signInRouter = require("./routes/signin"); //로그인 - 연산
 const searchRouter = require("./routes/search"); //직접 검색 - 웹 스크랩핑
 const modalRouter = require("./routes/modal"); //특정 영화 관련 정보
+const filterSearchModalRouter = require("./routes/filterSearchModal"); //필터 기능을 이용한 검색 - 영화 관련 정보
 
 app.use("/emailCheck", emailCheckRouter);
 app.use("/verificode", verifiCodeRouter);
@@ -42,6 +43,7 @@ app.use("/signup", signUpRouter);
 app.use("/signin", signInRouter);
 app.use("/search", searchRouter);
 app.use("/modal", modalRouter);
+app.use("/filterSearchModal", filterSearchModalRouter);
 
 //404 응답은 단순히 실행해야 할 추가적인 작업이 없다는 것을 의미
 app.use((req, res, next) => {
