@@ -37,43 +37,26 @@ const returnPromise = async (movies, idx, $) => {
   });
 };
 
-const filterMovies = async (req, res, next) => {
-  // { genre: 1, open: 2010, nation: 'GR' }
-  // const genre = req.body.genre;
-  // const open = req.body.open;
-  // const nation = req.body.nation;
-
-  let jsonArray = new Array();
-  const genre = req.body.json.genre;
-  const open = req.body.json.open;
-  const nation = req.body.json.nation;
-
-  //1. 브라우저 실행
-  const browser = await puppeteer.launch({
-    headless: true,
-  });
-
-  //2. 새페이지 오픈
-  const page = await browser.newPage();
-
-  //3. 필터 기반 검색된 url 접속 - nation, open, genre
+const returnSitePromise = async (page, genre, open, nation) => {
+  //   console.log(page);
+  //   console.log(genre, open, nation);
   await page.goto(
     `https://movie.naver.com/movie/sdb/browsing/bmovie.naver?nation=${encodeURI(
       nation
     )}&open=${encodeURI(open)}&genre=${encodeURI(genre)}&page=1`
   );
-
-  // await page.waitForSelector(".directory_list");
   let repeat = false;
   let count = 0;
+
+  let jsonArray = new Array();
+
   do {
     await page.waitForSelector(".directory_list");
-    // let repeat = false;
     count++;
     const content = await page.content();
     const $ = cheerio.load(content);
-    const movies = $(".directory_list").children("li");
 
+    const movies = $(".directory_list").children("li");
     const arr = Object.keys(movies).slice(0, movies["length"]);
     const map1 = arr.map((idx) => returnPromise(movies, idx, $));
 
@@ -89,16 +72,73 @@ const filterMovies = async (req, res, next) => {
         console.log(err, "에러");
       });
 
-    await page
-      .click(".next")
-      .then((res) => {
-        repeat = true;
-      })
-      .catch((err) => {
-        repeat = false;
-      });
+    //존재 유무로 T/F를 판단
+    if ($("#old_content > div.pagenavigation > table > tbody > tr > td.next")) {
+      await page
+        .click(
+          "#old_content > div.pagenavigation > table > tbody > tr > td.next"
+        )
+        .then((res) => {
+          repeat = true;
+        })
+        .catch((err) => {
+          repeat = false;
+        });
+    } else {
+      repeat = false;
+    }
   } while (repeat === true);
-  res.json({ movies: jsonArray });
+  //   return work;
+  return jsonArray; //온전한 jsonArray가 결과로 나올 수 있도록 하기!!!
+};
+
+const filterMovies = async (req, res, next) => {
+  // { genre: 1, open: 2010, nation: 'GR' }
+  // const genre = req.body.genre;
+  // const open = req.body.open;
+  // const nation = req.body.nation;
+  const TEN = 10;
+
+  let jsonArray = new Array();
+  const genre = req.body.json.genre;
+  const open = req.body.json.open; //***open 먼저 확인!!***
+  const nation = req.body.json.nation;
+  console.log(genre, open, nation);
+
+  //1. 브라우저 실행
+  const browser = await puppeteer.launch({
+    headless: true,
+  });
+
+  //2. 새페이지 오픈
+  let arr = [];
+  for (let i = 0; i < TEN; i++) {
+    arr.push(browser.newPage());
+  }
+  const pages = await Promise.all(arr);
+  const opens = [...Array(TEN).keys()].map((key) => key + open);
+  const dictionary = {};
+  for (let i = 0; i < TEN; i++) {
+    dictionary[opens[i]] = pages[i];
+  }
+  // console.log(dictionary);
+  let siteMap = [];
+  for (let open in dictionary) {
+    siteMap.push(returnSitePromise(dictionary[open], genre, open, nation));
+  }
+  // /////////////////////////////////////////////////////////
+  const work1 = await Promise.all(siteMap)
+    .then((res) => {
+      //   console.log(res);
+      // res.forEach((item, idx, arr) => {
+      //   jsonArray.push(item);
+      // });
+      return res;
+    })
+    .catch((err) => {
+      console.log(err, "에러");
+    });
+  console.log(work1);
 };
 
 module.exports = {
