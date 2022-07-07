@@ -58,8 +58,9 @@ const returnSitePromise = async (page, genre, open, nation) => {
 
     const movies = $(".directory_list").children("li");
     const arr = Object.keys(movies).slice(0, movies["length"]);
+    // console.log(arr);
     const map1 = arr.map((idx) => returnPromise(movies, idx, $));
-
+    // console.log(map1);
     const work = await Promise.all(map1)
       .then((res) => {
         // console.log(res);
@@ -89,7 +90,8 @@ const returnSitePromise = async (page, genre, open, nation) => {
     }
   } while (repeat === true);
   //   return work;
-  return jsonArray; //온전한 jsonArray가 결과로 나올 수 있도록 하기!!!
+  // console.log(jsonArray);
+  return jsonArray;
 };
 
 const filterMovies = async (req, res, next) => {
@@ -104,41 +106,82 @@ const filterMovies = async (req, res, next) => {
   const open = req.body.json.open; //***open 먼저 확인!!***
   const nation = req.body.json.nation;
   console.log(genre, open, nation);
+  console.log(open.toString().length); //4자리일 때, 직접 년대 계산 + 3자리일 때, 이미 있는 걸로 계산
 
   //1. 브라우저 실행
   const browser = await puppeteer.launch({
     headless: true,
   });
 
-  //2. 새페이지 오픈
-  let arr = [];
-  for (let i = 0; i < TEN; i++) {
-    arr.push(browser.newPage());
+  switch (open.toString().length) {
+    case 3:
+      //2. 새페이지 오픈
+      const page = await browser.newPage();
+
+      //3. 필터 기반 검색된 url 접속 - nation, open, genre
+      let siteMap1 = [];
+      siteMap1.push(returnSitePromise(page, genre, open, nation));
+
+      const work2 = await Promise.all(siteMap1)
+        .then((res) => {
+          let result = [];
+          res.forEach((x) => {
+            if (Array.isArray(x) && x.length === 0) return;
+            x.forEach((ele) => result.push(ele));
+          });
+          return result;
+        })
+        .catch((err) => {
+          console.log(err, "에러");
+        });
+
+      // const result1 = returnSitePromise(page, genre, open, nation);
+      // console.log(result1);
+      res.json({ movies: work2 });
+      break;
+    case 4:
+      //2. 새페이지 오픈
+      let arr = [];
+      for (let i = 0; i < TEN; i++) {
+        arr.push(browser.newPage());
+      }
+
+      /**
+       * const arr = new Array(TEN).fill(browser.newPage());
+       */
+
+      const pages = await Promise.all(arr);
+      const opens = [...Array(TEN).keys()].map((key) => key + open);
+      // console.log(opens);
+      const dictionary = {};
+      for (let i = 0; i < TEN; i++) {
+        dictionary[opens[i]] = pages[i];
+      }
+
+      //3. 필터 기반 검색된 url 접속 - nation, open, genre
+      let siteMap = [];
+      for (let open in dictionary) {
+        siteMap.push(returnSitePromise(dictionary[open], genre, open, nation));
+      }
+
+      const work1 = await Promise.all(siteMap)
+        .then((res) => {
+          let result = [];
+          res.forEach((x) => {
+            if (Array.isArray(x) && x.length === 0) return;
+            x.forEach((ele) => result.push(ele));
+          });
+          return result;
+        })
+        .catch((err) => {
+          console.log(err, "에러");
+        });
+
+      res.json({ movies: work1 });
+      break;
+    default:
+      console.log("에러 발생");
   }
-  const pages = await Promise.all(arr);
-  const opens = [...Array(TEN).keys()].map((key) => key + open);
-  const dictionary = {};
-  for (let i = 0; i < TEN; i++) {
-    dictionary[opens[i]] = pages[i];
-  }
-  // console.log(dictionary);
-  let siteMap = [];
-  for (let open in dictionary) {
-    siteMap.push(returnSitePromise(dictionary[open], genre, open, nation));
-  }
-  // /////////////////////////////////////////////////////////
-  const work1 = await Promise.all(siteMap)
-    .then((res) => {
-      //   console.log(res);
-      // res.forEach((item, idx, arr) => {
-      //   jsonArray.push(item);
-      // });
-      return res;
-    })
-    .catch((err) => {
-      console.log(err, "에러");
-    });
-  console.log(work1);
 };
 
 module.exports = {
