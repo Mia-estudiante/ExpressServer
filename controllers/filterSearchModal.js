@@ -14,8 +14,9 @@ const contentHTML = async (link) => {
 
 const returnPromise = async (movies, idx, $) => {
   return await new Promise(async (resolve, reject) => {
-    let json = new Object();
+    console.log($(movies[idx]).children("a").text());
 
+    let json = new Object();
     //1. 영화 상세 페이지 링크
     json.link =
       "https://movie.naver.com" + $(movies[idx]).find("li a").attr("href");
@@ -119,6 +120,14 @@ const filterMovies = async (req, res, next) => {
   const browser = await puppeteer.launch({
     headless: true,
   });
+
+  /**
+   * 경우의 수('개봉년대' 기준)
+   * 1. '개봉년대' 선택안함(open===0)
+   * 2. '개봉년대' 선택(open!==0)
+   * 1) 1940년대~1980년대(open.toString().length===3)
+   * 2) 1990년대~2020년대(open.toString().length===4)
+   */
   if (open !== 0) {
     switch (open.toString().length) {
       case 3: //3자리일 때, 네이버 영화 디렉토리를 통해 - 1940년대~1980년대(194~198)
@@ -146,7 +155,7 @@ const filterMovies = async (req, res, next) => {
         // console.log(result1);
         res.json({ movies: work2 });
         break;
-      case 4: //4자리일 때, 직접 년대 계산
+      case 4: //4자리일 때, 직접 년대 계산 - 1990년대~2020년대
         const TEN = 10;
         //2. 새페이지 오픈
         let arr = [];
