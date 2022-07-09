@@ -33,6 +33,7 @@ const returnPromise = async (movies, idx, $) => {
       const typePos = $$(".poster > a > img").attr("src").indexOf("type");
       json.imgSrc = imgSrc.slice(0, typePos);
     }
+    console.log(json);
     resolve(json);
   });
 };
@@ -40,11 +41,21 @@ const returnPromise = async (movies, idx, $) => {
 const returnSitePromise = async (page, genre, open, nation) => {
   //   console.log(page);
   //   console.log(genre, open, nation);
-  await page.goto(
-    `https://movie.naver.com/movie/sdb/browsing/bmovie.naver?nation=${encodeURI(
-      nation
-    )}&open=${encodeURI(open)}&genre=${encodeURI(genre)}&page=1`
-  );
+  if (open !== 0) {
+    await page.goto(
+      `https://movie.naver.com/movie/sdb/browsing/bmovie.naver?nation=${encodeURI(
+        nation
+      )}&open=${encodeURI(open)}&genre=${encodeURI(genre)}&page=1`
+    );
+  } else {
+    console.log("페이지 오픈");
+    await page.goto(
+      `https://movie.naver.com/movie/sdb/browsing/bmovie.naver?nation=${encodeURI(
+        nation
+      )}&genre=${encodeURI(genre)}&page=1`
+    );
+  }
+
   let repeat = false;
   let count = 0;
 
@@ -60,7 +71,6 @@ const returnSitePromise = async (page, genre, open, nation) => {
     const arr = Object.keys(movies).slice(0, movies["length"]);
     // console.log(arr);
     const map1 = arr.map((idx) => returnPromise(movies, idx, $));
-    // console.log(map1);
     const work = await Promise.all(map1)
       .then((res) => {
         // console.log(res);
@@ -99,88 +109,113 @@ const filterMovies = async (req, res, next) => {
   // const genre = req.body.genre;
   // const open = req.body.open;
   // const nation = req.body.nation;
-  const TEN = 10;
 
-  let jsonArray = new Array();
   const genre = req.body.json.genre;
-  const open = req.body.json.open; //***open 먼저 확인!!***
+  const open = req.body.json.open;
   const nation = req.body.json.nation;
   console.log(genre, open, nation);
-  console.log(open.toString().length); //4자리일 때, 직접 년대 계산 + 3자리일 때, 이미 있는 걸로 계산
 
   //1. 브라우저 실행
   const browser = await puppeteer.launch({
     headless: true,
   });
+  if (open !== 0) {
+    switch (open.toString().length) {
+      case 3: //3자리일 때, 네이버 영화 디렉토리를 통해 - 1940년대~1980년대(194~198)
+        //2. 새페이지 오픈
+        const page = await browser.newPage();
 
-  switch (open.toString().length) {
-    case 3:
-      //2. 새페이지 오픈
-      const page = await browser.newPage();
+        //3. 필터 기반 검색된 url 접속 - nation, open, genre
+        let siteMap1 = [];
+        siteMap1.push(returnSitePromise(page, genre, open, nation));
 
-      //3. 필터 기반 검색된 url 접속 - nation, open, genre
-      let siteMap1 = [];
-      siteMap1.push(returnSitePromise(page, genre, open, nation));
-
-      const work2 = await Promise.all(siteMap1)
-        .then((res) => {
-          let result = [];
-          res.forEach((x) => {
-            if (Array.isArray(x) && x.length === 0) return;
-            x.forEach((ele) => result.push(ele));
+        const work2 = await Promise.all(siteMap1)
+          .then((res) => {
+            let result = [];
+            res.forEach((x) => {
+              if (Array.isArray(x) && x.length === 0) return;
+              x.forEach((ele) => result.push(ele));
+            });
+            return result;
+          })
+          .catch((err) => {
+            console.log(err, "에러");
           });
-          return result;
-        })
-        .catch((err) => {
-          console.log(err, "에러");
-        });
 
-      // const result1 = returnSitePromise(page, genre, open, nation);
-      // console.log(result1);
-      res.json({ movies: work2 });
-      break;
-    case 4:
-      //2. 새페이지 오픈
-      let arr = [];
-      for (let i = 0; i < TEN; i++) {
-        arr.push(browser.newPage());
-      }
+        // const result1 = returnSitePromise(page, genre, open, nation);
+        // console.log(result1);
+        res.json({ movies: work2 });
+        break;
+      case 4: //4자리일 때, 직접 년대 계산
+        const TEN = 10;
+        //2. 새페이지 오픈
+        let arr = [];
+        for (let i = 0; i < TEN; i++) {
+          arr.push(browser.newPage());
+        }
 
-      /**
-       * const arr = new Array(TEN).fill(browser.newPage());
-       */
+        /**
+         * const arr = new Array(TEN).fill(browser.newPage());
+         */
 
-      const pages = await Promise.all(arr);
-      const opens = [...Array(TEN).keys()].map((key) => key + open);
-      // console.log(opens);
-      const dictionary = {};
-      for (let i = 0; i < TEN; i++) {
-        dictionary[opens[i]] = pages[i];
-      }
+        const pages = await Promise.all(arr);
+        const opens = [...Array(TEN).keys()].map((key) => key + open);
+        // console.log(opens);
+        const dictionary = {};
+        for (let i = 0; i < TEN; i++) {
+          dictionary[opens[i]] = pages[i];
+        }
 
-      //3. 필터 기반 검색된 url 접속 - nation, open, genre
-      let siteMap = [];
-      for (let open in dictionary) {
-        siteMap.push(returnSitePromise(dictionary[open], genre, open, nation));
-      }
+        //3. 필터 기반 검색된 url 접속 - nation, open, genre
+        let siteMap = [];
+        for (let open in dictionary) {
+          siteMap.push(
+            returnSitePromise(dictionary[open], genre, open, nation)
+          );
+        }
 
-      const work1 = await Promise.all(siteMap)
-        .then((res) => {
-          let result = [];
-          res.forEach((x) => {
-            if (Array.isArray(x) && x.length === 0) return;
-            x.forEach((ele) => result.push(ele));
+        const work1 = await Promise.all(siteMap)
+          .then((res) => {
+            let result = [];
+            res.forEach((x) => {
+              if (Array.isArray(x) && x.length === 0) return;
+              x.forEach((ele) => result.push(ele));
+            });
+            return result;
+          })
+          .catch((err) => {
+            console.log(err, "에러");
           });
-          return result;
-        })
-        .catch((err) => {
-          console.log(err, "에러");
-        });
 
-      res.json({ movies: work1 });
-      break;
-    default:
-      console.log("에러 발생");
+        res.json({ movies: work1 });
+        break;
+      default:
+        console.log("에러 발생");
+    }
+  } else {
+    //2. 새페이지 오픈
+    const page = await browser.newPage();
+
+    //3. 필터 기반 검색된 url 접속 - nation, open, genre
+    let siteMap1 = [];
+    siteMap1.push(returnSitePromise(page, genre, open, nation));
+
+    const work2 = await Promise.all(siteMap1)
+      .then((res) => {
+        let result = [];
+        res.forEach((x) => {
+          if (Array.isArray(x) && x.length === 0) return;
+          x.forEach((ele) => result.push(ele));
+        });
+        return result;
+      })
+      .catch((err) => {
+        console.log(err, "에러");
+      });
+
+    // const result1 = returnSitePromise(page, genre, open, nation);
+    // console.log(result1);
+    res.json({ movies: work2 });
   }
 };
 
